@@ -29,7 +29,7 @@ const ADMIN_CONFIG = {
 
 // 添加 GitHub API 配置
 const GITHUB_CONFIG = {
-    token: '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',  // 替换为你的 token
+    token: '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',  // 替换为你的 token
     gistId: '302551a15cf6c0442f93b65c0f579251',      // 创建 Gist 后填入 ID
 };
 
