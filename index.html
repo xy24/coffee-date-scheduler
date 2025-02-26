@@ -1,1 +1,71 @@
- 
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>咖啡约会调度器</title>
+    <base href="/coffee-date-scheduler/">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://s0.pstatp.com/ee/lark/h5/sdk/h5-js-sdk-1.5.7.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>☕️ 来和我喝杯咖啡吧</h1>
+        
+        <div class="privacy-notice">
+            <p>🔒 隐私保护：预约信息仅用于确认身份，其他人只能看到时间段是否被预约，看不到预约人信息。</p>
+        </div>
+
+        <div class="user-info" style="display: none;">
+            <img id="user-avatar" class="avatar" src="" alt="用户头像">
+            <span id="user-name"></span>
+        </div>
+
+        <div class="status-panel">
+            <h2>本月剩余名额：<span id="remaining-slots">4</span></h2>
+            <div class="slots-container">
+                <div class="slot-item" id="slot1">
+                    <div class="slot-status">空闲</div>
+                    <div class="slot-time">未预约</div>
+                </div>
+                <div class="slot-item" id="slot2">
+                    <div class="slot-status">空闲</div>
+                    <div class="slot-time">未预约</div>
+                </div>
+                <div class="slot-item" id="slot3">
+                    <div class="slot-status">空闲</div>
+                    <div class="slot-time">未预约</div>
+                </div>
+                <div class="slot-item" id="slot4">
+                    <div class="slot-status">空闲</div>
+                    <div class="slot-time">未预约</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="booking-panel">
+            <h3>预约时间</h3>
+            <form id="booking-form">
+                <input type="date" id="date" required>
+                <input type="time" id="time" required>
+                <button type="submit">预约</button>
+            </form>
+        </div>
+
+        <div class="confirmation-panel" style="display: none;">
+            <h3>预约成功！</h3>
+            <p>您的确认码：<span id="confirmation-code"></span></p>
+            <p class="note">请保存此确认码，用于后续确认身份</p>
+        </div>
+
+        <div class="lottery-panel" style="display: none;">
+            <h3>随机抽取时间到啦！</h3>
+            <div class="lottery-wheel">
+                <canvas id="wheel-canvas"></canvas>
+            </div>
+            <button id="start-lottery">开始抽取</button>
+        </div>
+    </div>
+    <script src="scripts/main.js"></script>
+</body>
+</html> 
