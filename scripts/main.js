@@ -78,9 +78,7 @@ async function loadBookingData() {
         return result;  // 注意：移除了 .record，因为设置了 X-Bin-Meta: false
     } catch (error) {
         console.error('Failed to load booking data:', error);
-        // 失败时从 localStorage 加载
-        const savedData = localStorage.getItem('bookingData');
-        return savedData ? JSON.parse(savedData) : null;
+        return null;
     }
 }
 
@@ -95,12 +93,19 @@ async function generateHash(password) {
     return hashHex;
 }
 
+// 添加显示/隐藏加载蒙版的函数
+function showLoading() {
+    document.getElementById('loading-mask').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loading-mask').style.display = 'none';
+}
+
 // 修改初始化函数
 async function init() {
-    // 显示加载遮罩
-    const loadingOverlay = document.getElementById('loading-overlay');
-    loadingOverlay.style.display = 'flex';
-
+    showLoading(); // 显示加载蒙版
+    
     try {
         // 加载所有数据
         const data = await loadBookingData();
@@ -117,6 +122,7 @@ async function init() {
             data.reactions = data.reactions || { like: 0, dislike: 0 };
             bookingData = data;
         } else {
+            console.log("no booking data from load");
             // 如果没有数据，初始化默认数据
             bookingData = {
                 slots: {
@@ -146,20 +152,18 @@ async function init() {
         updateUI();
         await updateVisitCount();
         await initReactions();
-        await checkMonthlyReset();
         
         // 添加事件监听
         document.getElementById('booking-form').addEventListener('submit', handleBooking);
         document.getElementById('reset-button').addEventListener('click', handleReset);
         initCoffeeBanner();
         updateMonthDisplay();
-
+        
     } catch (error) {
         console.error('Failed to initialize:', error);
         alert('加载失败，请刷新页面重试');
     } finally {
-        // 隐藏加载遮罩
-        loadingOverlay.style.display = 'none';
+        hideLoading(); // 隐藏加载蒙版
     }
 }
 
@@ -296,52 +300,36 @@ async function sendEmailNotification(name, time) {
 // 修改重置数据函数
 async function resetBookingData() {
     try {
-        // 先获取当前数据以保留反应数据
+        // 先获取当前数据以保留所有现有数据
         const currentData = await loadBookingData();
         
-        const newBookingData = {
-            slots: {
-                1: { booked: false, name: '', time: '第一周' },
-                2: { booked: false, name: '', time: '第二周' },
-                3: { booked: false, name: '', time: '第三周' },
-                4: { booked: false, name: '', time: '第四周' }
-            },
-            remainingSlots: 4,
-            stats: currentData?.stats || {
-                visits: 0,
-                todayVisits: {
-                    date: new Date().toDateString(),
-                    count: 0
+        // 只有在确认重置时才更新 slots 数据
+        if (currentData && !localStorage.getItem('lastResetDate')) {
+            const newBookingData = {
+                ...currentData,  // 保留所有现有数据
+                slots: {
+                    1: { booked: false, name: '', time: '第一周' },
+                    2: { booked: false, name: '', time: '第二周' },
+                    3: { booked: false, name: '', time: '第三周' },
+                    4: { booked: false, name: '', time: '第四周' }
                 },
-                lastVisitTime: new Date().toLocaleString('zh-CN')
-            },
-            reactions: currentData?.reactions || { like: 0, dislike: 0 }
-        };
-        
-        // 保存到 JsonBin
-        await saveBookingData(newBookingData);
-        
-        // 更新本地数据
-        bookingData = newBookingData;
-        
-        // 记录重置时间
-        localStorage.setItem('lastResetDate', new Date().toISOString());
+                remainingSlots: 4
+            };
+            
+            // 保存到 JsonBin
+            await saveBookingData(newBookingData);
+            
+            // 更新本地数据
+            bookingData = newBookingData;
+            
+            // 记录重置时间
+            localStorage.setItem('lastResetDate', new Date().toISOString());
+        }
         
         updateUI();
     } catch (error) {
         console.error('重置失败：', error);
         alert('重置失败，请重试');
-    }
-}
-
-// 修改月度重置检查函数
-async function checkMonthlyReset() {
-    const lastResetDate = localStorage.getItem('lastResetDate');
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    if (!lastResetDate || new Date(lastResetDate) < firstDayOfMonth) {
-        await resetBookingData();
     }
 }
 
