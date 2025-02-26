@@ -27,6 +27,109 @@ const ADMIN_CONFIG = {
     passwordHash: 'd8d42ae90acd4c887940ea9290780ec1e50ec5a8d77c4242079d61cd222e8f84'
 };
 
+// 添加 GitHub API 配置
+const GITHUB_CONFIG = {
+    token: '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',  // 替换为你的 token
+    gistId: '302551a15cf6c0442f93b65c0f579251',      // 创建 Gist 后填入 ID
+};
+
+// 添加数据持久化函数
+async function saveToGist(data) {
+    try {
+        const response = await fetch(`https://api.github.com/gists/${GITHUB_CONFIG.gistId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `token ${GITHUB_CONFIG.token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                files: {
+                    'coffee-data.json': {
+                        content: JSON.stringify(data)
+                    }
+                }
+            })
+        });
+        
+        if (!response.ok) throw new Error('Failed to save data');
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to save to Gist:', error);
+        // 失败时回退到 localStorage
+        localStorage.setItem('coffeeData', JSON.stringify(data));
+    }
+}
+
+async function loadFromGist() {
+    try {
+        const response = await fetch(`https://api.github.com/gists/${GITHUB_CONFIG.gistId}`, {
+            headers: {
+                'Authorization': `token ${GITHUB_CONFIG.token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load data');
+        
+        const gist = await response.json();
+        
+        // 检查是否存在数据文件
+        if (!gist.files['coffee-data.json']) {
+            // 如果文件不存在，创建初始数据
+            const initialData = {
+                visits: 0,
+                todayVisits: {
+                    date: new Date().toDateString(),
+                    count: 0
+                },
+                lastVisitTime: new Date().toLocaleString('zh-CN'),
+                reactions: {
+                    like: 0,
+                    dislike: 0
+                },
+                bookings: {
+                    slots: {
+                        1: { booked: false, name: '', time: '第一周' },
+                        2: { booked: false, name: '', time: '第二周' },
+                        3: { booked: false, name: '', time: '第三周' },
+                        4: { booked: false, name: '', time: '第四周' }
+                    },
+                    remainingSlots: 4
+                }
+            };
+            
+            // 保存初始数据
+            await saveToGist(initialData);
+            return initialData;
+        }
+        
+        return JSON.parse(gist.files['coffee-data.json'].content);
+    } catch (error) {
+        console.error('Failed to load from Gist:', error);
+        // 返回默认数据结构而不是使用 localStorage
+        return {
+            visits: 0,
+            todayVisits: {
+                date: new Date().toDateString(),
+                count: 0
+            },
+            lastVisitTime: new Date().toLocaleString('zh-CN'),
+            reactions: {
+                like: 0,
+                dislike: 0
+            },
+            bookings: {
+                slots: {
+                    1: { booked: false, name: '', time: '第一周' },
+                    2: { booked: false, name: '', time: '第二周' },
+                    3: { booked: false, name: '', time: '第三周' },
+                    4: { booked: false, name: '', time: '第四周' }
+                },
+                remainingSlots: 4
+            }
+        };
+    }
+}
+
 // 生成正确的哈希值
 async function generateHash(password) {
     const encoder = new TextEncoder();
@@ -38,39 +141,44 @@ async function generateHash(password) {
     return hashHex;
 }
 
-// 初始化函数
-function init() {
-    // 从localStorage加载数据
-    const savedData = localStorage.getItem('bookingData');
-    if (savedData) {
-        bookingData = JSON.parse(savedData);
+// 修改初始化函数
+async function init() {
+    // 从 Gist 加载所有数据
+    try {
+        const data = await loadFromGist();
+        // 初始化预约数据
+        if (data.bookings) {
+            bookingData = data.bookings;
+        }
         updateUI();
+    } catch (error) {
+        // 如果加载失败，尝试从 localStorage 加载
+        const savedData = localStorage.getItem('bookingData');
+        if (savedData) {
+            bookingData = JSON.parse(savedData);
+            updateUI();
+        }
     }
 
-    // 添加表单提交事件监听
+    // 添加事件监听
     document.getElementById('booking-form').addEventListener('submit', handleBooking);
-
-    // 添加重置按钮事件监听
     document.getElementById('reset-button').addEventListener('click', handleReset);
-
-    // 添加月份显示
+    
+    // 更新月份显示
     updateMonthDisplay();
-
-    // 初始化UI
-    updateUI();
-
+    
     // 更新访问次数
     updateVisitCount();
-
+    
     // 初始化点赞数据
     initReactions();
-
+    
     // 初始化咖啡图片点击效果
     initCoffeeBanner();
 }
 
-// 处理预约提交
-function handleBooking(event) {
+// 修改预约处理函数
+async function handleBooking(event) {
     event.preventDefault();
     
     const nameInput = document.getElementById('name');
@@ -89,31 +197,38 @@ function handleBooking(event) {
         return;
     }
 
-    // 更新预约数据
-    bookingData.slots[slotId].booked = true;
-    bookingData.slots[slotId].name = name;
-    bookingData.remainingSlots--;
+    try {
+        // 更新预约数据
+        bookingData.slots[slotId].booked = true;
+        bookingData.slots[slotId].name = name;
+        bookingData.remainingSlots--;
 
-    // 保存到localStorage
-    localStorage.setItem('bookingData', JSON.stringify(bookingData));
+        // 获取当前 Gist 数据
+        const data = await loadFromGist();
+        data.bookings = bookingData;
+        
+        // 保存到 Gist
+        await saveToGist(data);
+        
+        // 备份到 localStorage
+        localStorage.setItem('bookingData', JSON.stringify(bookingData));
 
-    // 更新UI
-    updateUI();
+        // 更新UI
+        updateUI();
 
-    // 显示成功动画
-    showSuccessAnimation();
+        // 显示成功动画
+        showSuccessAnimation();
 
-    // 发送通知
-    notifyAdmin(name, slotId)
-        .then(() => {
-            console.log('预约通知已发送');
-        })
-        .catch(error => {
-            console.error('预约通知发送失败：', error);
-        });
+        // 发送通知
+        await notifyAdmin(name, slotId);
+        console.log('预约通知已发送');
 
-    // 重置表单
-    event.target.reset();
+        // 重置表单
+        event.target.reset();
+    } catch (error) {
+        console.error('预约失败：', error);
+        alert('预约失败，请重试');
+    }
 }
 
 // 更新UI显示
@@ -200,20 +315,9 @@ async function sendEmailNotification(name, time) {
     }
 }
 
-// 检查是否需要月度重置
-function checkMonthlyReset() {
-    const lastResetDate = localStorage.getItem('lastResetDate');
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    if (!lastResetDate || new Date(lastResetDate) < firstDayOfMonth) {
-        resetBookingData();
-    }
-}
-
-// 重置预约数据
-function resetBookingData() {
-    bookingData = {
+// 修改重置数据函数
+async function resetBookingData() {
+    const newBookingData = {
         slots: {
             1: { booked: false, name: '', time: '第一周' },
             2: { booked: false, name: '', time: '第二周' },
@@ -223,10 +327,37 @@ function resetBookingData() {
         remainingSlots: 4
     };
     
-    localStorage.setItem('bookingData', JSON.stringify(bookingData));
-    localStorage.setItem('lastResetDate', new Date().toISOString());
+    try {
+        // 获取当前 Gist 数据
+        const data = await loadFromGist();
+        data.bookings = newBookingData;
+        
+        // 保存到 Gist
+        await saveToGist(data);
+        
+        // 更新本地数据
+        bookingData = newBookingData;
+        
+        // 备份到 localStorage
+        localStorage.setItem('bookingData', JSON.stringify(bookingData));
+        localStorage.setItem('lastResetDate', new Date().toISOString());
+        
+        updateUI();
+    } catch (error) {
+        console.error('重置失败：', error);
+        alert('重置失败，请重试');
+    }
+}
+
+// 修改月度重置检查函数
+async function checkMonthlyReset() {
+    const lastResetDate = localStorage.getItem('lastResetDate');
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    updateUI();
+    if (!lastResetDate || new Date(lastResetDate) < firstDayOfMonth) {
+        await resetBookingData();
+    }
 }
 
 // 修改重置处理函数
@@ -262,120 +393,140 @@ function updateMonthDisplay() {
 }
 
 // 修改访问统计函数
-function updateVisitCount() {
-    // 获取当前时间
-    const now = new Date();
-    const today = now.toDateString();
-    
-    // 获取总访问次数
-    let visits = parseInt(localStorage.getItem('visitCount') || '0');
-    visits += 1;
-    
-    // 获取今日访问数据
-    let todayData = JSON.parse(localStorage.getItem('todayVisits') || '{"date":"","count":0}');
-    if (todayData.date !== today) {
-        // 新的一天，重置计数
-        todayData = {
-            date: today,
-            count: 1
-        };
-    } else {
-        // 同一天，增加计数
-        todayData.count += 1;
+async function updateVisitCount() {
+    try {
+        const data = await loadFromGist();
+        const now = new Date();
+        const today = now.toDateString();
+        
+        // 更新访问数据
+        data.visits = (data.visits || 0) + 1;
+        data.todayVisits = data.todayVisits || { date: '', count: 0 };
+        
+        if (data.todayVisits.date !== today) {
+            data.todayVisits = {
+                date: today,
+                count: 1
+            };
+        } else {
+            data.todayVisits.count += 1;
+        }
+        
+        data.lastVisitTime = now.toLocaleString('zh-CN', {
+            hour12: false,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // 保存更新后的数据
+        await saveToGist(data);
+        
+        // 更新显示
+        document.getElementById('visit-count').textContent = data.visits;
+        document.getElementById('today-visit-count').textContent = data.todayVisits.count;
+        document.getElementById('last-visit-time').textContent = data.lastVisitTime;
+    } catch (error) {
+        console.error('Failed to update visit count:', error);
     }
-    
-    // 更新最近访问时间
-    const lastVisitTime = now.toLocaleString('zh-CN', {
-        hour12: false,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-
-    // 保存数据
-    localStorage.setItem('visitCount', visits.toString());
-    localStorage.setItem('todayVisits', JSON.stringify(todayData));
-    localStorage.setItem('lastVisitTime', lastVisitTime);
-
-    // 更新显示
-    document.getElementById('visit-count').textContent = visits.toString();
-    document.getElementById('today-visit-count').textContent = todayData.count.toString();
-    document.getElementById('last-visit-time').textContent = lastVisitTime;
 }
 
-// 处理点赞函数
-function handleReaction(type) {
-    const countKey = `${type}Count`;
-    const count = parseInt(localStorage.getItem(countKey) || '0') + 1;
-    localStorage.setItem(countKey, count.toString());
-    
-    const btn = document.querySelector(`.reaction-btn.${type}`);
-    const emojiElement = btn.querySelector('.emoji');
-    const countElement = document.getElementById(`${type}-count`);
-    
-    // 更新计数
-    countElement.textContent = count;
-    
-    // 添加弹出动画
-    emojiElement.classList.add('pop');
-    setTimeout(() => emojiElement.classList.remove('pop'), 300);
+// 修改点赞处理函数
+async function handleReaction(type) {
+    try {
+        const data = await loadFromGist();
+        
+        // 更新点赞/踩数据
+        data.reactions = data.reactions || {};
+        data.reactions[type] = (data.reactions[type] || 0) + 1;
+        
+        // 保存数据
+        await saveToGist(data);
+        
+        // 更新显示
+        const countElement = document.getElementById(`${type}-count`);
+        countElement.textContent = data.reactions[type];
+        
+        // 动画效果
+        const btn = document.querySelector(`.reaction-btn.${type}`);
+        const emojiElement = btn.querySelector('.emoji');
+        
+        emojiElement.classList.add('pop');
+        setTimeout(() => emojiElement.classList.remove('pop'), 300);
 
-    // 创建浮动表情
-    const floating = document.createElement('span');
-    floating.textContent = type === 'like' ? '❤️' : '🌚';
-    floating.className = 'floating';
-    btn.appendChild(floating);
+        const floating = document.createElement('span');
+        floating.textContent = type === 'like' ? '❤️' : '🌚';
+        floating.className = 'floating';
+        btn.appendChild(floating);
 
-    // 动画结束后移除元素
-    setTimeout(() => floating.remove(), 800);
+        setTimeout(() => floating.remove(), 800);
+    } catch (error) {
+        console.error('Failed to handle reaction:', error);
+    }
 }
 
-// 初始化点赞功能
-function initReactions() {
-    // 从localStorage加载点赞数据
-    const likes = parseInt(localStorage.getItem('likeCount') || '0');
-    const dislikes = parseInt(localStorage.getItem('dislikeCount') || '0');
-    
-    document.getElementById('like-count').textContent = likes;
-    document.getElementById('dislike-count').textContent = dislikes;
+// 修改初始化点赞功能
+async function initReactions() {
+    try {
+        const data = await loadFromGist();
+        
+        // 初始化反应数据
+        data.reactions = data.reactions || { like: 0, dislike: 0 };
+        
+        // 更新显示
+        document.getElementById('like-count').textContent = data.reactions.like || 0;
+        document.getElementById('dislike-count').textContent = data.reactions.dislike || 0;
+        
+        // 添加点击事件监听
+        const likeBtn = document.querySelector('.reaction-btn.like');
+        const dislikeBtn = document.querySelector('.reaction-btn.dislike');
 
-    // 添加点击事件监听
-    const likeBtn = document.querySelector('.reaction-btn.like');
-    const dislikeBtn = document.querySelector('.reaction-btn.dislike');
-
-    likeBtn.addEventListener('click', () => handleReaction('like'));
-    dislikeBtn.addEventListener('click', () => handleReaction('dislike'));
+        likeBtn.addEventListener('click', () => handleReaction('like'));
+        dislikeBtn.addEventListener('click', () => handleReaction('dislike'));
+    } catch (error) {
+        console.error('Failed to initialize reactions:', error);
+    }
 }
 
 // 修改初始化咖啡图片点击效果
-function initCoffeeBanner() {
+async function initCoffeeBanner() {
     const banner = document.getElementById('coffee-banner');
     
-    banner.addEventListener('click', () => {
-        // 添加弹出动画
-        banner.classList.add('pop');
-        setTimeout(() => banner.classList.remove('pop'), 300);
+    banner.addEventListener('click', async () => {
+        try {
+            // 添加弹出动画
+            banner.classList.add('pop');
+            setTimeout(() => banner.classList.remove('pop'), 300);
 
-        // 创建浮动爱心
-        const floating = document.createElement('span');
-        floating.textContent = '❤️';
-        floating.className = 'floating';
-        banner.parentElement.appendChild(floating);
+            // 创建浮动爱心
+            const floating = document.createElement('span');
+            floating.textContent = '❤️';
+            floating.className = 'floating';
+            banner.parentElement.appendChild(floating);
 
-        // 动画结束后移除元素
-        setTimeout(() => floating.remove(), 800);
+            // 动画结束后移除元素
+            setTimeout(() => floating.remove(), 800);
 
-        // 增加点赞数
-        const likes = parseInt(localStorage.getItem('likeCount') || '0') + 1;
-        localStorage.setItem('likeCount', likes.toString());
-        document.getElementById('like-count').textContent = likes;
+            // 增加点赞数
+            const data = await loadFromGist();
+            data.reactions = data.reactions || { like: 0, dislike: 0 };
+            data.reactions.like = (data.reactions.like || 0) + 1;
+            
+            // 保存到 Gist
+            await saveToGist(data);
 
-        // 给点赞按钮也添加动画效果
-        const likeBtn = document.querySelector('.reaction-btn.like .emoji');
-        likeBtn.classList.add('pop');
-        setTimeout(() => likeBtn.classList.remove('pop'), 300);
+            // 更新显示
+            document.getElementById('like-count').textContent = data.reactions.like;
+
+            // 给点赞按钮也添加动画效果
+            const likeBtn = document.querySelector('.reaction-btn.like .emoji');
+            likeBtn.classList.add('pop');
+            setTimeout(() => likeBtn.classList.remove('pop'), 300);
+        } catch (error) {
+            console.error('Failed to handle coffee banner click:', error);
+        }
     });
 }
 
