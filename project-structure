@@ -1,0 +1,12 @@
+coffee-date-scheduler/
+├── frontend/
+│   ├── index.html
+│   ├── styles.css
+│   └── scripts/
+│       ├── main.js
+│       ├── booking.js
+│       └── lottery.js
+├── backend/
+│   ├── server.js
+│   └── database/
+└── README.md 
