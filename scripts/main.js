@@ -1,12 +1,24 @@
 // 存储预约数据的结构
 let bookingData = {
     slots: {
-        1: { booked: false, name: '', time: '第一周' },
-        2: { booked: false, name: '', time: '第二周' },
-        3: { booked: false, name: '', time: '第三周' },
-        4: { booked: false, name: '', time: '第四周' }
+        1: { booked: false, time: '第一周' },
+        2: { booked: false, time: '第二周' },
+        3: { booked: false, time: '第三周' },
+        4: { booked: false, time: '第四周' }
     },
-    remainingSlots: 4
+    remainingSlots: 4,
+    stats: {
+        visits: 0,
+        todayVisits: {
+            date: new Date().toDateString(),
+            count: 0
+        },
+        lastVisitTime: new Date().toLocaleString('zh-CN')
+    },
+    reactions: {
+        like: 0,
+        dislike: 0
+    }
 };
 
 // 通知系统配置
@@ -126,10 +138,10 @@ async function init() {
             // 如果没有数据，初始化默认数据
             bookingData = {
                 slots: {
-                    1: { booked: false, name: '', time: '第一周' },
-                    2: { booked: false, name: '', time: '第二周' },
-                    3: { booked: false, name: '', time: '第三周' },
-                    4: { booked: false, name: '', time: '第四周' }
+                    1: { booked: false, time: '第一周' },
+                    2: { booked: false, time: '第二周' },
+                    3: { booked: false, time: '第三周' },
+                    4: { booked: false, time: '第四周' }
                 },
                 remainingSlots: 4,
                 stats: {
@@ -171,14 +183,11 @@ async function init() {
 async function handleBooking(event) {
     event.preventDefault();
     
-    const nameInput = document.getElementById('name');
     const slotSelect = document.getElementById('slot-select');
-    
-    const name = nameInput.value.trim();
     const slotId = slotSelect.value;
 
-    if (!name || !slotId) {
-        alert('请填写完整信息');
+    if (!slotId) {
+        alert('请选择时间段');
         return;
     }
 
@@ -190,7 +199,7 @@ async function handleBooking(event) {
     try {
         // 更新预约数据
         bookingData.slots[slotId].booked = true;
-        bookingData.slots[slotId].name = name;
+        // 不存储姓名，只记录预约状态
         bookingData.remainingSlots--;
 
         // 保存到 JsonBin
@@ -202,8 +211,8 @@ async function handleBooking(event) {
         // 显示成功动画
         showSuccessAnimation();
 
-        // 发送通知
-        await notifyAdmin(name, slotId);
+        // 发送通知（可选，若需要通知管理员）
+        // await notifyAdmin(name, slotId); // 这里可以选择不发送姓名
 
         // 重置表单
         event.target.reset();
@@ -308,10 +317,10 @@ async function resetBookingData() {
             const newBookingData = {
                 ...currentData,  // 保留所有现有数据
                 slots: {
-                    1: { booked: false, name: '', time: '第一周' },
-                    2: { booked: false, name: '', time: '第二周' },
-                    3: { booked: false, name: '', time: '第三周' },
-                    4: { booked: false, name: '', time: '第四周' }
+                    1: { booked: false, time: '第一周' },
+                    2: { booked: false, time: '第二周' },
+                    3: { booked: false, time: '第三周' },
+                    4: { booked: false, time: '第四周' }
                 },
                 remainingSlots: 4
             };
