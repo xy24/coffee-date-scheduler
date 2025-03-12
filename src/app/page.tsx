@@ -4,49 +4,21 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { gsap } from 'gsap';
 import emailjs from '@emailjs/browser';
-
-// Types
-interface BookingData {
-  slots: {
-    [key: string]: {
-      booked: boolean;
-      time: string;
-    };
-  };
-  remainingSlots: number;
-  stats: {
-    visits: number;
-    todayVisits: {
-      date: string;
-      count: number;
-    };
-    lastVisitTime: string;
-  };
-  reactions: {
-    like: number;
-    dislike: number;
-  };
-}
+import { BookingData, getBookingData, updateBookingData } from '@/lib/db';
+import ClickableImage from './components/ClickableImage';
+import AnimatedReactionButton from './components/AnimatedReactionButton';
 
 // Constants
 const NOTIFICATION_CONFIG = {
   emailjs: {
-    serviceId: 'service_9jpbn2p',
-    templateId: 'template_s88ikl9',
+    serviceId: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'service_9jpbn2p',
+    templateId: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || 'template_s88ikl9',
   }
 };
 
 const TIME_CONFIG = {
   monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', 
                '七月', '八月', '九月', '十月', '十一月', '十二月']
-};
-
-const STORAGE_CONFIG = {
-  jsonbin: {
-    binId: '67bf17cfad19ca34f812b18b',
-    apiKey: '$2a$10$ZKUU1N.KO3Va9GKRpAPKEeEuNTxyGwJKEGSbOqJUq6k45RileiQce',
-    baseUrl: 'https://api.jsonbin.io/v3/b'
-  }
 };
 
 export default function Home() {
@@ -85,7 +57,7 @@ export default function Home() {
   const init = async () => {
     try {
       const data = await loadBookingData();
-      if (data && data.slots) {
+      if (data) {
         setBookingData(data);
       }
       await updateVisitCount();
@@ -101,19 +73,7 @@ export default function Home() {
 
   const loadBookingData = async () => {
     try {
-      const response = await fetch(`${STORAGE_CONFIG.jsonbin.baseUrl}/${STORAGE_CONFIG.jsonbin.binId}/latest`, {
-        method: 'GET',
-        headers: {
-          'X-Master-Key': STORAGE_CONFIG.jsonbin.apiKey,
-          'X-Bin-Meta': false,
-          'Content-Type': 'application/json',
-          'X-Access-Control-Allow-Origin': '*'
-        },
-        mode: 'cors'
-      });
-
-      if (!response.ok) throw new Error('Failed to load booking data');
-      return await response.json();
+      return await getBookingData();
     } catch (error) {
       console.error('Failed to load booking data:', error);
       return null;
@@ -122,20 +82,8 @@ export default function Home() {
 
   const saveBookingData = async (data: BookingData) => {
     try {
-      const response = await fetch(`${STORAGE_CONFIG.jsonbin.baseUrl}/${STORAGE_CONFIG.jsonbin.binId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': STORAGE_CONFIG.jsonbin.apiKey,
-          'X-Bin-Meta': false,
-          'X-Access-Control-Allow-Origin': '*'
-        },
-        mode: 'cors',
-        body: JSON.stringify(data)
-      });
-
-      if (!response.ok) throw new Error('Failed to save booking data');
-      return await response.json();
+      await updateBookingData(data);
+      return data;
     } catch (error) {
       console.error('Failed to save booking data:', error);
     }
@@ -211,7 +159,7 @@ export default function Home() {
   };
 
   const initReactions = () => {
-    emailjs.init("hick0U5XbCJJWRHmF");
+    emailjs.init(process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "hick0U5XbCJJWRHmF");
   };
 
   const initCoffeeBanner = () => {
@@ -240,36 +188,29 @@ export default function Home() {
       <div className="header text-center mb-8">
         <h1 className="text-3xl font-bold mb-4">☕️ 来和我喝杯咖啡吧</h1>
         <div className="coffee-banner-wrapper mb-4">
-          <Image
-            src="/images/coffee.png"
-            alt="约时间"
-            width={200}
-            height={200}
-            className="mx-auto"
-            id="coffee-banner"
-          />
+          <ClickableImage onImageClick={() => handleReaction('like')} />
         </div>
         <div className="reaction-buttons flex justify-center gap-4">
-          <button
+          <AnimatedReactionButton
             onClick={() => handleReaction('like')}
-            className="reaction-btn like px-4 py-2 rounded-full bg-pink-100 hover:bg-pink-200"
-          >
-            <span className="emoji">❤️赞一赞</span>
-            <span className="count ml-2">{bookingData.reactions.like}</span>
-          </button>
-          <button
+            emoji="❤️"
+            label="赞一赞"
+            count={bookingData.reactions.like}
+            className="bg-pink-100 hover:bg-pink-200"
+          />
+          <AnimatedReactionButton
             onClick={() => handleReaction('dislike')}
-            className="reaction-btn dislike px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200"
-          >
-            <span className="emoji">🌚踩一踩</span>
-            <span className="count ml-2">{bookingData.reactions.dislike}</span>
-          </button>
+            emoji="🌚"
+            label="踩一踩"
+            count={bookingData.reactions.dislike}
+            className="bg-gray-100 hover:bg-gray-200"
+          />
         </div>
       </div>
 
       <div className="month-display text-center mb-8">
         <h2 className="text-2xl">
-          预约yxy <span>{TIME_CONFIG.monthNames[new Date().getMonth() + 1]}</span> 咖啡时间
+          预约yxy <span>{TIME_CONFIG.monthNames[new Date().getMonth()]}</span> 咖啡时间
         </h2>
       </div>
 

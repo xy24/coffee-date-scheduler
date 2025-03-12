@@ -10,6 +10,7 @@ A Next.js application for scheduling coffee dates. Built with TypeScript, Tailwi
 - Privacy-focused design
 - Responsive UI
 - Email notifications for new bookings
+- Server-side data storage with file persistence
 
 ## Prerequisites
 
@@ -47,8 +48,6 @@ The application uses the following environment variables:
 - `NEXT_PUBLIC_EMAILJS_PUBLIC_KEY`: Your EmailJS public key
 - `NEXT_PUBLIC_EMAILJS_SERVICE_ID`: Your EmailJS service ID
 - `NEXT_PUBLIC_EMAILJS_TEMPLATE_ID`: Your EmailJS template ID
-- `NEXT_PUBLIC_JSONBIN_API_KEY`: Your JSONBin API key
-- `NEXT_PUBLIC_JSONBIN_BIN_ID`: Your JSONBin bin ID
 
 ## Building for Production
 
@@ -68,6 +67,10 @@ npm start
 yarn start
 ```
 
+## Data Storage
+
+The application uses a server-side file-based storage system. All data is stored in a `db.json` file in the root directory of the project. The data is accessed and modified through API routes.
+
 ## Technologies Used
 
 - Next.js 14
@@ -75,7 +78,7 @@ yarn start
 - Tailwind CSS
 - GSAP (GreenSock Animation Platform)
 - EmailJS
-- JSONBin.io (for data storage)
+- Server-side API routes for data persistence
 
 ## License
 
