@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+/* Custom styles */
+.coffee-banner-wrapper {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+}
+
+.coffee-banner {
+  position: relative;
+  z-index: 1;
+}
+
+.reaction-btn {
+  transition: transform 0.2s;
+}
+
+.reaction-btn:hover {
+  transform: scale(1.05);
+}
+
+.slot-item {
+  transition: all 0.3s ease;
+}
+
+.slot-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.success-checkmark {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.check-icon {
+  width: 80px;
+  height: 80px;
+  position: relative;
+}
+
+.check-icon::before {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 0;
+  background-color: #4CAF50;
+  bottom: 0;
+  left: 0;
+  animation: fill 0.4s ease-in-out 0.4s forwards;
+}
+
+.check-icon::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 3px;
+  background-color: #4CAF50;
+  bottom: 0;
+  left: 0;
+  animation: fill 0.4s ease-in-out 0.8s forwards;
+}
+
+@keyframes fill {
+  100% {
+    width: 100%;
+    height: 100%;
+  }
+} 
