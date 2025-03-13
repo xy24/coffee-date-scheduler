@@ -149,7 +149,8 @@ export default function Home() {
           ...bookingSlots.slots,
           [time]: true
         },
-        remainingSlots: bookingSlots.remainingSlots - 1
+        remainingSlots: bookingSlots.remainingSlots - 1,
+        currentMonth: bookingSlots.currentMonth
       });
       setFormData({ name: '', time: '' }); // Reset form
       toast.success('Successfully booked!');
