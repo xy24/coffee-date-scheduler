@@ -117,7 +117,7 @@ export default function Home() {
     init();
   }, []);
 
-  const handleBooking = async (time: string) => {
+  const handleBooking = async (time: string, name: string) => {
     try {
       console.log('Booking time:', time);
       
@@ -129,7 +129,8 @@ export default function Home() {
         },
         body: JSON.stringify({
           slotId: time,
-          remainingSlots: bookingSlots.remainingSlots - 1
+          remainingSlots: bookingSlots.remainingSlots - 1,
+          name: name
         }),
       });
 
@@ -240,7 +241,7 @@ export default function Home() {
 
       <div className="privacy-notice bg-blue-50 p-4 rounded-lg mb-8">
         <p className="text-sm">
-          🔒 隐私保护：您的预约信息将被严格保密，其他人只能看到时间段是否被预约。预约成功后，我将收到Lark通知。
+          🔒 隐私保护：您的预约信息将被严格保密，其他人只能看到时间段是否被预约。预约成功后，我将收到飞书通知。
         </p>
       </div>
 
@@ -268,7 +269,7 @@ export default function Home() {
 
       <div className="booking-panel bg-white p-6 rounded-lg shadow-md mb-8">
         <h3 className="text-xl mb-4">预约咖啡时间</h3>
-        <form onSubmit={(e) => { e.preventDefault(); handleBooking(formData.time); }}>
+        <form onSubmit={(e) => { e.preventDefault(); handleBooking(formData.time, formData.name); }}>
           <div className="mb-4">
             <label htmlFor="name" className="block mb-2">您的姓名</label>
             <input

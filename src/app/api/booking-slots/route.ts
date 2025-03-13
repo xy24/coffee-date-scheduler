@@ -46,6 +46,7 @@ async function sendLarkWebhookNotification(message: any) {
       return;
     }
     console.log("token", token);
+    console.log("body:", JSON.stringify(message)  );
 
     const response = await fetch(LARK_WEBHOOK_URL!, {
       method: 'POST',
@@ -53,11 +54,7 @@ async function sendLarkWebhookNotification(message: any) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({
-        receive_id: LARK_RECEIVE_ID,
-        msg_type: "interactive",
-        content: JSON.stringify(message)  // Need to stringify the card content
-      })
+      body: JSON.stringify(message)
     });
 
     const data = await response.json();
@@ -70,12 +67,9 @@ async function sendLarkWebhookNotification(message: any) {
 }
 
 // Main notification function
-async function sendLarkNotification(slotId: string) {
+async function sendLarkNotification(slotId: string, name: string) {
   const currentTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-  const cardMessage = {
-    config: {
-      wide_screen_mode: true
-    },
+  const message = {
     header: {
       title: {
         tag: "plain_text",
@@ -88,11 +82,11 @@ async function sendLarkNotification(slotId: string) {
         tag: "div",
         text: {
           tag: "lark_md",
-          content: `**预约时段**: ${slotId}\n**预约时间**: ${currentTime}`
+          content: `**预约时段**: ${slotId}\n**预约时间**: ${currentTime}\n**预约人**: ${name}`
         }
-      },
+      }, // 添加预约时段和预约时间
       {
-        tag: "hr"
+        tag: "hr" // 添加分隔线
       },
       {
         tag: "note",
@@ -102,13 +96,13 @@ async function sendLarkNotification(slotId: string) {
             content: "来自咖啡预约系统"
           }
         ]
-      }
+      } // 添加来源
     ]
   };
 
   // Try webhook first if URL is provided
   if (LARK_WEBHOOK_URL) {
-    await sendLarkWebhookNotification(cardMessage);
+    await sendLarkWebhookNotification({ receive_id: LARK_RECEIVE_ID, msg_type: 'interactive', content: message });
     return;
   }
 
@@ -140,7 +134,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { slotId, remainingSlots } = await request.json();
+    const { slotId, remainingSlots, name } = await request.json();
     
     try {
       // Get current data
@@ -167,7 +161,7 @@ export async function POST(request: NextRequest) {
       saveBookingSlots(updatedData);
       
       // Send Lark notification
-      sendLarkNotification(slotId).catch(error => {
+      sendLarkNotification(slotId, name).catch(error => {
         console.error('Failed to send Lark notification:', error);
       });
       
