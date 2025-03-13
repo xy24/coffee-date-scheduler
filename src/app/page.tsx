@@ -212,31 +212,35 @@ export default function Home() {
   return (
     <main className="container mx-auto px-4 py-8">
       <div className="header text-center mb-8">
-        <h1 className="text-3xl font-bold mb-4">☕️ 来和我喝杯咖啡吧</h1>
-        <div className="coffee-banner-wrapper mb-4">
-          <ClickableImage onImageClick={() => handleReaction('like')} />
-        </div>
-        <div className="reaction-buttons flex justify-center gap-4">
-          <AnimatedReactionButton
-            onClick={() => handleReaction('like')}
-            emoji="❤️"
-            label="赞一赞"
-            count={reactions.like}
-            className="bg-pink-100 hover:bg-pink-200"
-          />
-          <AnimatedReactionButton
-            onClick={() => handleReaction('dislike')}
-            emoji="🌚"
-            label="踩一踩"
-            count={reactions.dislike}
-            className="bg-gray-100 hover:bg-gray-200"
-          />
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <h1 className="text-3xl font-bold">☕️ 来和我喝杯咖啡吧</h1>
+          <div className="flex items-center gap-2">
+            <div className="coffee-banner-wrapper">
+              <ClickableImage onImageClick={() => handleReaction('like')} />
+            </div>
+            <div className="reaction-buttons flex flex-col gap-2">
+              <AnimatedReactionButton
+                onClick={() => handleReaction('like')}
+                emoji="❤️"
+                label="赞一赞"
+                count={reactions.like}
+                className="bg-pink-100 hover:bg-pink-200"
+              />
+              <AnimatedReactionButton
+                onClick={() => handleReaction('dislike')}
+                emoji="🌚"
+                label="踩一踩"
+                count={reactions.dislike}
+                className="bg-gray-100 hover:bg-gray-200"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="month-display text-center mb-8">
         <h2 className="text-2xl">
-          预约yxy <span>{TIME_CONFIG.monthNames[new Date().getMonth()]}</span> 咖啡时间
+          预约yxy <span>{TIME_CONFIG.monthNames[new Date().getMonth()+1]}</span> 咖啡时间
         </h2>
       </div>
 

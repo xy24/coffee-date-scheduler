@@ -15,9 +15,10 @@ body {
 /* Custom styles */
 .coffee-banner-wrapper {
   position: relative;
-  width: 200px;
-  height: 200px;
-  margin: 0 auto;
+  width: 100px;
+  height: 100px;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .coffee-banner {

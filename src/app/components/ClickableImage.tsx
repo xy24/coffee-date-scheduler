@@ -103,8 +103,8 @@ export default function ClickableImage({ onImageClick }: ClickableImageProps) {
       <Image
         src="/images/coffee.png"
         alt="约时间"
-        width={200}
-        height={200}
+        width={100}
+        height={100}
         className="mx-auto cursor-pointer"
         id="coffee-banner"
       />
