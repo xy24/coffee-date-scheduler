@@ -4,9 +4,17 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { gsap } from 'gsap';
 import emailjs from '@emailjs/browser';
-import { BookingData, getBookingData, updateBookingData } from '@/lib/db';
+import { 
+  BookingSlots, 
+  VisitStats, 
+  Reactions, 
+  defaultBookingSlots, 
+  defaultVisitStats, 
+  defaultReactions 
+} from '@/lib/db';
 import ClickableImage from './components/ClickableImage';
 import AnimatedReactionButton from './components/AnimatedReactionButton';
+import { toast } from 'react-hot-toast';
 
 // Constants
 const NOTIFICATION_CONFIG = {
@@ -21,155 +29,150 @@ const TIME_CONFIG = {
                '七月', '八月', '九月', '十月', '十一月', '十二月']
 };
 
+const NOTIFICATION_DURATION = 2000;
+const TIME_OPTIONS = ['第一周', '第二周', '第三周', '第四周'];
+
 export default function Home() {
-  const [bookingData, setBookingData] = useState<BookingData>({
-    slots: {
-      1: { booked: false, time: '第一周' },
-      2: { booked: false, time: '第二周' },
-      3: { booked: false, time: '第三周' },
-      4: { booked: false, time: '第四周' }
-    },
-    remainingSlots: 4,
-    stats: {
-      visits: 0,
-      todayVisits: {
-        date: new Date().toDateString(),
-        count: 0
-      },
-      lastVisitTime: new Date().toLocaleString('zh-CN')
-    },
-    reactions: {
-      like: 0,
-      dislike: 0
-    }
-  });
+  const [bookingSlots, setBookingSlots] = useState<BookingSlots>(defaultBookingSlots);
+  const [visitStats, setVisitStats] = useState<VisitStats>(defaultVisitStats);
+  const [reactions, setReactions] = useState<Reactions>(defaultReactions);
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    slot: ''
-  });
+  const [formData, setFormData] = useState({ name: '', time: '' });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const init = async () => {
+      try {
+        setError(null);
+        console.log('Starting data initialization...');
+        
+        // Load initial data with detailed error logging
+        const [slotsResponse, statsResponse, reactionsResponse] = await Promise.all([
+          fetch('/api/booking-slots').catch(error => {
+            console.error('Failed to fetch booking slots:', error);
+            throw new Error('Booking slots fetch failed');
+          }),
+          fetch('/api/visit-stats').catch(error => {
+            console.error('Failed to fetch visit stats:', error);
+            throw new Error('Visit stats fetch failed');
+          }),
+          fetch('/api/reactions').catch(error => {
+            console.error('Failed to fetch reactions:', error);
+            throw new Error('Reactions fetch failed');
+          })
+        ]);
+
+        // Check individual response status
+        if (!slotsResponse.ok) {
+          console.error('Booking slots response not ok:', await slotsResponse.text());
+          throw new Error(`Booking slots error: ${slotsResponse.status}`);
+        }
+        if (!statsResponse.ok) {
+          console.error('Visit stats response not ok:', await statsResponse.text());
+          throw new Error(`Visit stats error: ${statsResponse.status}`);
+        }
+        if (!reactionsResponse.ok) {
+          console.error('Reactions response not ok:', await reactionsResponse.text());
+          throw new Error(`Reactions error: ${reactionsResponse.status}`);
+        }
+
+        console.log('All responses received, parsing JSON...');
+
+        const slots = await slotsResponse.json();
+        const stats = await statsResponse.json();
+        const reactions = await reactionsResponse.json();
+
+        console.log('Received data:', { slots, stats, reactions });
+
+        setBookingSlots(slots);
+        setVisitStats(stats);
+        setReactions(reactions);
+
+        // Update visit count
+        console.log('Updating visit count...');
+        const visitUpdateResponse = await fetch('/api/visit-stats', { method: 'POST' });
+        if (!visitUpdateResponse.ok) {
+          console.error('Failed to update visit count:', await visitUpdateResponse.text());
+        }
+
+        // Initialize animations
+        gsap.from('.booking-slot', {
+          opacity: 0,
+          y: 20,
+          duration: 0.5,
+          stagger: 0.1,
+        });
+
+        console.log('Initialization complete');
+      } catch (error) {
+        console.error('Initialization error:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load data. Please refresh the page.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     init();
   }, []);
 
-  const init = async () => {
+  const handleBooking = async (time: string) => {
     try {
-      const data = await loadBookingData();
-      if (data) {
-        setBookingData(data);
-      }
-      await updateVisitCount();
-      initReactions();
-      initCoffeeBanner();
-    } catch (error) {
-      console.error('Failed to initialize:', error);
-      alert('加载失败，请刷新页面重试');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadBookingData = async () => {
-    try {
-      return await getBookingData();
-    } catch (error) {
-      console.error('Failed to load booking data:', error);
-      return null;
-    }
-  };
-
-  const saveBookingData = async (data: BookingData) => {
-    try {
-      await updateBookingData(data);
-      return data;
-    } catch (error) {
-      console.error('Failed to save booking data:', error);
-    }
-  };
-
-  const handleBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.slot) {
-      alert('请选择时间段');
-      return;
-    }
-
-    if (bookingData.slots[formData.slot].booked) {
-      alert('该时间段已被预约');
-      return;
-    }
-
-    try {
-      const newBookingData = {
-        ...bookingData,
-        slots: {
-          ...bookingData.slots,
-          [formData.slot]: { ...bookingData.slots[formData.slot], booked: true }
+      console.log('Booking time:', time);
+      
+      // Only send the specific slot we want to update
+      const response = await fetch('/api/booking-slots', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        remainingSlots: bookingData.remainingSlots - 1
-      };
+        body: JSON.stringify({
+          slotId: time,
+          remainingSlots: bookingSlots.remainingSlots - 1
+        }),
+      });
 
-      await saveBookingData(newBookingData);
-      setBookingData(newBookingData);
-      setShowSuccess(true);
-      setFormData({ name: '', slot: '' });
+      const data = await response.json();
+      console.log('Booking response:', data);
+      
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to book slot');
+        return;
+      }
 
-      setTimeout(() => setShowSuccess(false), 3000);
+      // Update local state only after successful booking
+      setBookingSlots({
+        slots: {
+          ...bookingSlots.slots,
+          [time]: true
+        },
+        remainingSlots: bookingSlots.remainingSlots - 1
+      });
+      setFormData({ name: '', time: '' }); // Reset form
+      toast.success('Successfully booked!');
     } catch (error) {
-      console.error('预约失败：', error);
-      alert('预约失败，请重试');
+      console.error('Network error in booking:', error);
+      toast.error('Network error. Please try again.');
     }
   };
 
   const handleReaction = async (type: 'like' | 'dislike') => {
-    const newBookingData = {
-      ...bookingData,
-      reactions: {
-        ...bookingData.reactions,
-        [type]: bookingData.reactions[type] + 1
-      }
-    };
+    try {
+      const updatedReactions = {
+        ...reactions,
+        [type]: reactions[type] + 1
+      };
 
-    await saveBookingData(newBookingData);
-    setBookingData(newBookingData);
-  };
+      await fetch('/api/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedReactions)
+      });
 
-  const updateVisitCount = async () => {
-    const today = new Date().toDateString();
-    const newBookingData = {
-      ...bookingData,
-      stats: {
-        ...bookingData.stats,
-        visits: bookingData.stats.visits + 1,
-        todayVisits: {
-          date: today,
-          count: bookingData.stats.todayVisits.date === today 
-            ? bookingData.stats.todayVisits.count + 1 
-            : 1
-        },
-        lastVisitTime: new Date().toLocaleString('zh-CN')
-      }
-    };
-
-    await saveBookingData(newBookingData);
-    setBookingData(newBookingData);
-  };
-
-  const initReactions = () => {
-    emailjs.init(process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "hick0U5XbCJJWRHmF");
-  };
-
-  const initCoffeeBanner = () => {
-    gsap.to("#coffee-banner", {
-      y: -10,
-      duration: 1,
-      repeat: -1,
-      yoyo: true,
-      ease: "power1.inOut"
-    });
+      setReactions(updatedReactions);
+    } catch (error) {
+      console.error('Error updating reactions:', error);
+    }
   };
 
   if (loading) {
@@ -183,6 +186,26 @@ export default function Home() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white bg-opacity-90 z-50">
+        <div className="text-center text-red-600">
+          <p>{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            刷新页面
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure we have valid data before rendering
+  const slots = bookingSlots?.slots || defaultBookingSlots.slots;
+  const remainingSlots = bookingSlots?.remainingSlots ?? defaultBookingSlots.remainingSlots;
+
   return (
     <main className="container mx-auto px-4 py-8">
       <div className="header text-center mb-8">
@@ -195,14 +218,14 @@ export default function Home() {
             onClick={() => handleReaction('like')}
             emoji="❤️"
             label="赞一赞"
-            count={bookingData.reactions.like}
+            count={reactions.like}
             className="bg-pink-100 hover:bg-pink-200"
           />
           <AnimatedReactionButton
             onClick={() => handleReaction('dislike')}
             emoji="🌚"
             label="踩一踩"
-            count={bookingData.reactions.dislike}
+            count={reactions.dislike}
             className="bg-gray-100 hover:bg-gray-200"
           />
         </div>
@@ -221,21 +244,21 @@ export default function Home() {
       </div>
 
       <div className="status-panel mb-8">
-        <h2 className="text-xl mb-4">本月剩余名额：<span>{bookingData.remainingSlots}</span></h2>
+        <h2 className="text-xl mb-4">本月剩余名额：<span>{remainingSlots}</span></h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Object.entries(bookingData.slots).map(([slotId, data]) => (
+          {Object.entries(slots).map(([slotId, booked]) => (
             <div
               key={slotId}
               className={`slot-item p-4 rounded-lg ${
-                data.booked ? 'bg-red-100' : 'bg-green-100'
+                booked ? 'bg-red-100' : 'bg-green-100'
               }`}
             >
               <div className="slot-status font-bold">
-                {data.booked ? '已预约' : '空闲'}
+                {booked ? '已预约' : '空闲'}
               </div>
-              <div className="slot-time">{data.time}</div>
+              <div className="slot-time">{slotId}</div>
               <div className="slot-name">
-                {data.booked ? '已被预约' : ''}
+                {booked ? '已被预约' : ''}
               </div>
             </div>
           ))}
@@ -244,7 +267,7 @@ export default function Home() {
 
       <div className="booking-panel bg-white p-6 rounded-lg shadow-md mb-8">
         <h3 className="text-xl mb-4">预约咖啡时间</h3>
-        <form onSubmit={handleBooking}>
+        <form onSubmit={(e) => { e.preventDefault(); handleBooking(formData.time); }}>
           <div className="mb-4">
             <label htmlFor="name" className="block mb-2">您的姓名</label>
             <input
@@ -258,22 +281,20 @@ export default function Home() {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="slot-select" className="block mb-2">选择时间段</label>
+            <label htmlFor="time-select" className="block mb-2">选择时间段</label>
             <select
-              id="slot-select"
-              value={formData.slot}
-              onChange={(e) => setFormData({ ...formData, slot: e.target.value })}
+              id="time-select"
+              value={formData.time}
+              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
               required
               className="w-full p-2 border rounded"
             >
               <option value="">请选择时间段</option>
-              {Object.entries(bookingData.slots)
-                .filter(([_, data]) => !data.booked)
-                .map(([slotId, data]) => (
-                  <option key={slotId} value={slotId}>
-                    {data.time}
-                  </option>
-                ))}
+              {TIME_OPTIONS.map((time) => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))}
             </select>
           </div>
           <button
@@ -297,9 +318,9 @@ export default function Home() {
       )}
 
       <div className="visit-stats text-center text-sm text-gray-600">
-        <p>👀 总访问次数：{bookingData.stats.visits}</p>
-        <p>📅 今日访问：{bookingData.stats.todayVisits.count}</p>
-        <p>🕒 最近访问：{bookingData.stats.lastVisitTime}</p>
+        <p>👀 总访问次数：{visitStats.visits}</p>
+        <p>📅 今日访问：{visitStats.todayVisits.count}</p>
+        <p>🕒 最近访问：{visitStats.lastVisitTime}</p>
       </div>
     </main>
   );
