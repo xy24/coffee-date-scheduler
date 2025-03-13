@@ -69,7 +69,6 @@ function initializeDatabase() {
     // Initialize tables with default data if empty
     const initializeTable = (tableName: string, defaultData: any) => {
       const count = db!.prepare(`SELECT COUNT(*) as count FROM ${tableName}`).get() as { count: number };
-      console.log(`${tableName} count:`, count.count);
       
       if (count.count === 0) {
         console.log(`Initializing ${tableName} with default data:`, defaultData);

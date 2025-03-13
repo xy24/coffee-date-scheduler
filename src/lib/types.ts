@@ -4,6 +4,7 @@ export interface BookingSlots {
     [key: string]: boolean;
   };
   remainingSlots: number;
+  currentMonth: string;
 }
 
 export interface VisitStats {
@@ -28,7 +29,8 @@ export const defaultBookingSlots: BookingSlots = {
     '第三周': false,
     '第四周': false,
   },
-  remainingSlots: 4
+  remainingSlots: 4,
+  currentMonth: new Date().toISOString().slice(0, 7)
 };
 
 export const defaultVisitStats: VisitStats = {

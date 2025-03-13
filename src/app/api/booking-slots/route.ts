@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBookingSlots, saveBookingSlots } from '@/lib/sqlite';
-import { defaultBookingSlots } from '@/lib/db';
+import { defaultBookingSlots } from '@/lib/types';
 import type { BookingSlots } from '@/lib/types';
 
 // Constants for Lark API
@@ -45,8 +45,6 @@ async function sendLarkWebhookNotification(message: any) {
       console.error('Failed to get token for webhook notification');
       return;
     }
-    console.log("token", token);
-    console.log("body:", JSON.stringify(message)  );
 
     const response = await fetch(LARK_WEBHOOK_URL!, {
       method: 'POST',
@@ -70,39 +68,44 @@ async function sendLarkWebhookNotification(message: any) {
 async function sendLarkNotification(slotId: string, name: string) {
   const currentTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const message = {
-    header: {
-      title: {
-        tag: "plain_text",
-        content: "☕ 新的咖啡预约!"
+    receive_id: LARK_RECEIVE_ID,
+    msg_type: "interactive",
+    content: JSON.stringify({
+      config: { wide_screen_mode: true },
+      header: {
+        title: {
+          tag: "plain_text",
+          content: "☕ 新的咖啡预约!"
+        },
+        template: "blue"
       },
-      template: "blue"
-    },
-    elements: [
-      {
-        tag: "div",
-        text: {
-          tag: "lark_md",
-          content: `**预约时段**: ${slotId}\n**预约时间**: ${currentTime}\n**预约人**: ${name}`
-        }
-      }, // 添加预约时段和预约时间
-      {
-        tag: "hr" // 添加分隔线
-      },
-      {
-        tag: "note",
-        elements: [
-          {
-            tag: "plain_text",
-            content: "来自咖啡预约系统"
+      elements: [
+        {
+          tag: "div",
+          text: {
+            tag: "lark_md",
+            content: `**预约时段**: ${slotId}\n**预约人**: ${name}\n**预约时间**: ${currentTime}`
           }
-        ]
-      } // 添加来源
-    ]
+        },
+        {
+          tag: "hr"
+        },
+        {
+          tag: "note",
+          elements: [
+            {
+              tag: "plain_text",
+              content: "来自咖啡预约系统"
+            }
+          ]
+        }
+      ]
+    })
   };
 
   // Try webhook first if URL is provided
   if (LARK_WEBHOOK_URL) {
-    await sendLarkWebhookNotification({ receive_id: LARK_RECEIVE_ID, msg_type: 'interactive', content: message });
+    await sendLarkWebhookNotification(message);
     return;
   }
 
@@ -112,6 +115,17 @@ async function sendLarkNotification(slotId: string, name: string) {
 export async function GET() {
   try {
     let data = getBookingSlots();
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    // Check if month has changed
+    if (data.currentMonth !== currentMonth) {
+      console.log('Month changed, resetting slots');
+      data = {
+        ...defaultBookingSlots,
+        currentMonth
+      };
+      saveBookingSlots(data);
+    }
     
     // Ensure the data structure is correct
     if (!data || !data.slots || Object.keys(data.slots).length === 0) {
@@ -154,7 +168,8 @@ export async function POST(request: NextRequest) {
           ...currentData.slots,
           [slotId]: true
         },
-        remainingSlots
+        remainingSlots,
+        currentMonth: currentData.currentMonth
       };
       
       // Save booking data

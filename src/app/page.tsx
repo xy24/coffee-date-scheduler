@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { gsap } from 'gsap';
 import { 
@@ -10,7 +10,7 @@ import {
   defaultBookingSlots, 
   defaultVisitStats, 
   defaultReactions 
-} from '@/lib/db';
+} from '@/lib/types';
 import ClickableImage from './components/ClickableImage';
 import AnimatedReactionButton from './components/AnimatedReactionButton';
 import { toast } from 'react-hot-toast';
@@ -41,6 +41,7 @@ export default function Home() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({ name: '', time: '' });
   const [error, setError] = useState<string | null>(null);
+  const visitStatsRequested = useRef(false);
 
   useEffect(() => {
     const init = async () => {
@@ -49,14 +50,10 @@ export default function Home() {
         console.log('Starting data initialization...');
         
         // Load initial data with detailed error logging
-        const [slotsResponse, statsResponse, reactionsResponse] = await Promise.all([
+        const [slotsResponse, reactionsResponse] = await Promise.all([
           fetch('/api/booking-slots').catch(error => {
             console.error('Failed to fetch booking slots:', error);
             throw new Error('Booking slots fetch failed');
-          }),
-          fetch('/api/visit-stats').catch(error => {
-            console.error('Failed to fetch visit stats:', error);
-            throw new Error('Visit stats fetch failed');
           }),
           fetch('/api/reactions').catch(error => {
             console.error('Failed to fetch reactions:', error);
@@ -69,33 +66,37 @@ export default function Home() {
           console.error('Booking slots response not ok:', await slotsResponse.text());
           throw new Error(`Booking slots error: ${slotsResponse.status}`);
         }
-        if (!statsResponse.ok) {
-          console.error('Visit stats response not ok:', await statsResponse.text());
-          throw new Error(`Visit stats error: ${statsResponse.status}`);
-        }
         if (!reactionsResponse.ok) {
           console.error('Reactions response not ok:', await reactionsResponse.text());
           throw new Error(`Reactions error: ${reactionsResponse.status}`);
         }
 
+        // Only fetch visit stats if we haven't already
+        let statsResponse;
+        if (!visitStatsRequested.current) {
+          visitStatsRequested.current = true;
+          statsResponse = await fetch('/api/visit-stats').catch(error => {
+            console.error('Failed to fetch visit stats:', error);
+            throw new Error('Visit stats fetch failed');
+          });
+
+          if (!statsResponse.ok) {
+            console.error('Visit stats response not ok:', await statsResponse.text());
+            throw new Error(`Visit stats error: ${statsResponse.status}`);
+          }
+        }
+
         console.log('All responses received, parsing JSON...');
 
         const slots = await slotsResponse.json();
-        const stats = await statsResponse.json();
         const reactions = await reactionsResponse.json();
+        const stats = statsResponse ? await statsResponse.json() : visitStats;
 
         console.log('Received data:', { slots, stats, reactions });
 
         setBookingSlots(slots);
         setVisitStats(stats);
         setReactions(reactions);
-
-        // Update visit count
-        console.log('Updating visit count...');
-        const visitUpdateResponse = await fetch('/api/visit-stats', { method: 'POST' });
-        if (!visitUpdateResponse.ok) {
-          console.error('Failed to update visit count:', await visitUpdateResponse.text());
-        }
 
         // Initialize animations
         gsap.from('.booking-slot', {
