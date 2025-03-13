@@ -1,84 +1,60 @@
 # Coffee Date Scheduler
 
-A Next.js application for scheduling coffee dates. Built with TypeScript, Tailwind CSS, and modern web technologies.
+A simple web application for scheduling coffee dates with friends or colleagues.
 
 ## Features
 
-- Schedule coffee dates for different time slots
-- Like/Dislike reactions
-- Visit statistics tracking
-- Privacy-focused design
-- Responsive UI
-- Email notifications for new bookings
+- Interactive UI with animations
 - Server-side data storage with file persistence
+- Booking system for coffee dates
+- Visit counter to track page visits
+- Like/Dislike reaction system
+- Lark (Feishu) bot notifications for new bookings
 
-## Prerequisites
+## Setup
 
-- Node.js 18.x or later
-- npm or yarn
+1. Clone the repository
+2. Install dependencies with `npm install`
+3. Create a `.env.local` file with the following variables:
+   ```
+   # Required for both webhook and API methods
+   NEXT_PUBLIC_LARK_APP_ID=your_lark_app_id_here
+   NEXT_PUBLIC_LARK_APP_SECRET=your_lark_app_secret_here
 
-## Getting Started
+   # Option 1: Using Lark Custom Bot Webhook
+   NEXT_PUBLIC_LARK_WEBHOOK_URL=your_lark_webhook_url_here
+   
+   # Option 2: Using Lark API with direct messaging
+   NEXT_PUBLIC_LARK_RECEIVE_ID=your_lark_receive_id_here
+   ```
+4. Run the development server with `npm run dev`
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd coffee-date-scheduler
-```
+## Lark Bot Setup
 
-2. Install dependencies:
-```bash
-npm install
-# or
-yarn install
-```
+### Common Setup (Required for both methods)
+1. Create a Lark (Feishu) app in the [Lark Developer Console](https://open.feishu.cn/app)
+2. Enable the required permissions (message sending)
+3. Get your App ID and App Secret
+4. Add these values to your `.env.local` file
 
-3. Run the development server:
-```bash
-npm run dev
-# or
-yarn dev
-```
+### Option 1: Using Custom Bot Webhook
+1. Create a custom bot in your Lark workspace
+2. Get the webhook URL for the bot
+3. Add the webhook URL to your `.env.local` file as `NEXT_PUBLIC_LARK_WEBHOOK_URL`
 
-4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## Environment Variables
-
-The application uses the following environment variables:
-
-- `NEXT_PUBLIC_EMAILJS_PUBLIC_KEY`: Your EmailJS public key
-- `NEXT_PUBLIC_EMAILJS_SERVICE_ID`: Your EmailJS service ID
-- `NEXT_PUBLIC_EMAILJS_TEMPLATE_ID`: Your EmailJS template ID
-
-## Building for Production
-
-To create a production build:
-
-```bash
-npm run build
-# or
-yarn build
-```
-
-To start the production server:
-
-```bash
-npm start
-# or
-yarn start
-```
-
-## Data Storage
-
-The application uses a server-side file-based storage system. All data is stored in a `db.json` file in the root directory of the project. The data is accessed and modified through API routes.
+### Option 2: Using Direct Messaging
+1. Get the receive_id (user_id or chat_id) where you want to receive notifications
+2. Add the receive_id to your `.env.local` file as `NEXT_PUBLIC_LARK_RECEIVE_ID`
 
 ## Technologies Used
 
-- Next.js 14
+- Next.js 14 (React framework)
 - TypeScript
-- Tailwind CSS
-- GSAP (GreenSock Animation Platform)
-- EmailJS
+- SQLite (for data persistence)
+- GSAP (for animations)
+- Tailwind CSS (for styling)
 - Server-side API routes for data persistence
+- Lark Bot API for notifications
 
 ## License
 

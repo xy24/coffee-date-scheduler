@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { gsap } from 'gsap';
-import emailjs from '@emailjs/browser';
 import { 
   BookingSlots, 
   VisitStats, 
@@ -18,9 +17,11 @@ import { toast } from 'react-hot-toast';
 
 // Constants
 const NOTIFICATION_CONFIG = {
-  emailjs: {
-    serviceId: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'service_9jpbn2p',
-    templateId: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || 'template_s88ikl9',
+  lark: {
+    webhookUrl: process.env.NEXT_PUBLIC_LARK_WEBHOOK_URL || 'your_lark_webhook_url_here',
+    appId: process.env.NEXT_PUBLIC_LARK_APP_ID || 'your_lark_app_id_here',
+    appSecret: process.env.NEXT_PUBLIC_LARK_APP_SECRET || 'your_lark_app_secret_here',
+    chatId: process.env.NEXT_PUBLIC_LARK_CHAT_ID || 'your_lark_chat_id_here'
   }
 };
 
@@ -239,7 +240,7 @@ export default function Home() {
 
       <div className="privacy-notice bg-blue-50 p-4 rounded-lg mb-8">
         <p className="text-sm">
-          🔒 隐私保护：您的预约信息将被严格保密，其他人只能看到时间段是否被预约。预约成功后，我将收到邮件通知。
+          🔒 隐私保护：您的预约信息将被严格保密，其他人只能看到时间段是否被预约。预约成功后，我将收到Lark通知。
         </p>
       </div>
 
