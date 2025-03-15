@@ -68,25 +68,53 @@ export async function POST(request: NextRequest) {
 
     // Send notification to Lark
     const token = await getLarkToken();
-    if (token) {
-      const message = `新的咖啡约会预订！\n时间：${time}\n预订人：${name}`;
+    if (token && LARK_WEBHOOK_URL) {
+      const currentTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      const message = {
+        receive_id: LARK_RECEIVE_ID,
+        msg_type: "interactive",
+        content: JSON.stringify({
+          config: { wide_screen_mode: true },
+          header: {
+            title: {
+              tag: "plain_text",
+              content: "☕ 新的咖啡预约!"
+            },
+            template: "blue"
+          },
+          elements: [
+            {
+              tag: "div",
+              text: {
+                tag: "lark_md",
+                content: `**预约时段**: ${time}\n**预约人**: ${name}\n**预约时间**: ${currentTime}`
+              }
+            },
+            {
+              tag: "hr"
+            },
+            {
+              tag: "note",
+              elements: [
+                {
+                  tag: "plain_text",
+                  content: "来自咖啡预约系统"
+                }
+              ]
+            }
+          ]
+        })
+      };
       
       // Using API
-      await fetch('https://open.feishu.cn/open-apis/im/v1/messages', {
+      await fetch(LARK_WEBHOOK_URL, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          receive_id: LARK_RECEIVE_ID,
-          msg_type: 'text',
-          content: {
-            text: message
-          }
-        })
+        body: JSON.stringify(message)
       });
-      
     }
 
     return NextResponse.json(bookingSlots);
