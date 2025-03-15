@@ -15,16 +15,6 @@ import ClickableImage from './components/ClickableImage';
 import AnimatedReactionButton from './components/AnimatedReactionButton';
 import { toast } from 'react-hot-toast';
 
-// Constants
-const NOTIFICATION_CONFIG = {
-  lark: {
-    webhookUrl: process.env.NEXT_PUBLIC_LARK_WEBHOOK_URL || 'your_lark_webhook_url_here',
-    appId: process.env.NEXT_PUBLIC_LARK_APP_ID || 'your_lark_app_id_here',
-    appSecret: process.env.NEXT_PUBLIC_LARK_APP_SECRET || 'your_lark_app_secret_here',
-    chatId: process.env.NEXT_PUBLIC_LARK_CHAT_ID || 'your_lark_chat_id_here'
-  }
-};
-
 const TIME_CONFIG = {
   monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', 
                '七月', '八月', '九月', '十月', '十一月', '十二月']
