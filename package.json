@@ -11,6 +11,7 @@
     "test-db": "tsx src/lib/test-db.ts"
   },
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.44.0",
     "@vercel/postgres": "^0.7.2",
     "dotenv": "^16.4.7",
     "gsap": "^3.12.5",
