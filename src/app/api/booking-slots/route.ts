@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBookingSlots, saveBookingSlots } from '@/lib/sqlite';
+import { getBookingSlots, saveBookingSlots } from '@/lib/db';
 import { defaultBookingSlots } from '@/lib/types';
 import type { BookingSlots } from '@/lib/types';
 
@@ -36,85 +36,72 @@ async function getLarkToken() {
   }
 }
 
-// Function to send notification via webhook
-async function sendLarkWebhookNotification(message: any) {
+export async function POST(request: NextRequest) {
   try {
-    // Get token first
+    const data = await request.json();
+    const { name, time } = data;
+
+    if (!name || !time) {
+      return NextResponse.json(
+        { error: 'Name and time are required' },
+        { status: 400 }
+      );
+    }
+
+    // Get current booking slots
+    let bookingSlots = await getBookingSlots();
+    
+    // Check if the slot exists and is available
+    if (bookingSlots.slots[time]) {
+      return NextResponse.json(
+        { error: 'Invalid or already booked time slot' },
+        { status: 400 }
+      );
+   } 
+
+    // Update the slot
+    bookingSlots.slots[time] = true;
+    bookingSlots.remainingSlots--;
+    
+    // Save to database
+    await saveBookingSlots(bookingSlots);
+
+    // Send notification to Lark
     const token = await getLarkToken();
-    if (!token) {
-      console.error('Failed to get token for webhook notification');
-      return;
-    }
-
-    const response = await fetch(LARK_WEBHOOK_URL!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(message)
-    });
-
-    const data = await response.json();
-    if (data.code !== 0) {
-      console.error('Failed to send Lark webhook notification:', data);
-    }
-  } catch (error) {
-    console.error('Error sending Lark webhook notification:', error);
-  }
-}
-
-// Main notification function
-async function sendLarkNotification(slotId: string, name: string) {
-  const currentTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-  const message = {
-    receive_id: LARK_RECEIVE_ID,
-    msg_type: "interactive",
-    content: JSON.stringify({
-      config: { wide_screen_mode: true },
-      header: {
-        title: {
-          tag: "plain_text",
-          content: "☕ 新的咖啡预约!"
+    if (token) {
+      const message = `新的咖啡约会预订！\n时间：${time}\n预订人：${name}`;
+      
+      // Using API
+      await fetch('https://open.feishu.cn/open-apis/im/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        template: "blue"
-      },
-      elements: [
-        {
-          tag: "div",
-          text: {
-            tag: "lark_md",
-            content: `**预约时段**: ${slotId}\n**预约人**: ${name}\n**预约时间**: ${currentTime}`
+        body: JSON.stringify({
+          receive_id: LARK_RECEIVE_ID,
+          msg_type: 'text',
+          content: {
+            text: message
           }
-        },
-        {
-          tag: "hr"
-        },
-        {
-          tag: "note",
-          elements: [
-            {
-              tag: "plain_text",
-              content: "来自咖啡预约系统"
-            }
-          ]
-        }
-      ]
-    })
-  };
+        })
+      });
+      
+    }
 
-  // Try webhook first if URL is provided
-  if (LARK_WEBHOOK_URL) {
-    await sendLarkWebhookNotification(message);
-    return;
+    return NextResponse.json(bookingSlots);
+  } catch (error) {
+    console.error('Error in booking slots POST:', error);
+    return NextResponse.json(
+      { error: 'Failed to process booking' },
+      { status: 500 }
+    );
   }
-
-  console.warn('Lark notification not sent: No valid configuration found');
 }
 
 export async function GET() {
   try {
-    let data = getBookingSlots();
+    let data = await getBookingSlots();
     const currentMonth = new Date().toISOString().slice(0, 7);
     
     // Check if month has changed
@@ -124,7 +111,7 @@ export async function GET() {
         ...defaultBookingSlots,
         currentMonth
       };
-      saveBookingSlots(data);
+      await saveBookingSlots(data);
     }
     
     // Ensure the data structure is correct
@@ -132,7 +119,7 @@ export async function GET() {
       data = defaultBookingSlots;
       // Save default data to database
       try {
-        saveBookingSlots(defaultBookingSlots);
+        await saveBookingSlots(defaultBookingSlots);
       } catch (saveError) {
         console.error('Error saving default booking slots:', saveError);
       }
@@ -143,55 +130,5 @@ export async function GET() {
     console.error('Error in booking slots GET:', error);
     // Return default data structure on error
     return NextResponse.json(defaultBookingSlots);
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const { slotId, remainingSlots, name } = await request.json();
-    
-    try {
-      // Get current data
-      const currentData = getBookingSlots();
-      
-      // Check if the slot is already booked
-      if (currentData.slots[slotId] === true) {
-        return NextResponse.json(
-          { error: `Slot ${slotId} is already booked` },
-          { status: 400 }
-        );
-      }
-      
-      // Create updated data
-      const updatedData = {
-        slots: {
-          ...currentData.slots,
-          [slotId]: true
-        },
-        remainingSlots,
-        currentMonth: currentData.currentMonth
-      };
-      
-      // Save booking data
-      saveBookingSlots(updatedData);
-      
-      // Send Lark notification
-      sendLarkNotification(slotId, name).catch(error => {
-        console.error('Failed to send Lark notification:', error);
-      });
-      
-      return NextResponse.json({ success: true });
-    } catch (error) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : 'Failed to save booking slots' },
-        { status: 500 }
-      );
-    }
-  } catch (error) {
-    console.error('Error parsing request data:', error);
-    return NextResponse.json(
-      { error: 'Invalid request data' },
-      { status: 400 }
-    );
   }
 } 

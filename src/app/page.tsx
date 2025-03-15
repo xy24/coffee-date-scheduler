@@ -129,8 +129,7 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          slotId: time,
-          remainingSlots: bookingSlots.remainingSlots - 1,
+          time: time,
           name: name
         }),
       });
