@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import Image from 'next/image';
 import { gsap } from 'gsap';
 import { 
   BookingSlots, 
@@ -20,7 +19,6 @@ const TIME_CONFIG = {
                '七月', '八月', '九月', '十月', '十一月', '十二月']
 };
 
-const NOTIFICATION_DURATION = 2000;
 const TIME_OPTIONS = ['第一周', '第二周', '第三周', '第四周'];
 
 export default function Home() {

@@ -7,10 +7,12 @@ import {
   defaultVisitStats, 
   defaultReactions 
 } from './types';
+import { unstable_noStore as noStore } from 'next/cache';
 
 // Booking slots functions
 export async function getBookingSlots(): Promise<BookingSlots> {
   try {
+    noStore();
     const result = await sql`SELECT * FROM booking_slots`;
     const slots = result.rows;
     
@@ -54,6 +56,7 @@ export async function saveBookingSlots(data: BookingSlots): Promise<void> {
 // Visit stats functions
 export async function getVisitStats(): Promise<VisitStats> {
   try {
+    noStore();
     const result = await sql`SELECT * FROM visit_stats WHERE id = 1`;
     const stats = result.rows[0];
     
@@ -110,6 +113,7 @@ export async function updateVisitStats(): Promise<VisitStats> {
 // Reactions functions
 export async function getReactions(): Promise<Reactions> {
   try {
+    noStore();
     const result = await sql`SELECT * FROM reactions WHERE id = 1`;
     const reactions = result.rows[0];
     
