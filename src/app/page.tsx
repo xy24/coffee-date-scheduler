@@ -14,6 +14,18 @@ import ClickableImage from './components/ClickableImage';
 import AnimatedReactionButton from './components/AnimatedReactionButton';
 import { toast, Toaster } from 'react-hot-toast';
 
+// Debounce helper function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 const TIME_CONFIG = {
   monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', 
                '七月', '八月', '九月', '十月', '十一月', '十二月']
@@ -31,6 +43,42 @@ export default function Home() {
   const [formData, setFormData] = useState({ name: '', time: '' });
   const [error, setError] = useState<string | null>(null);
   const visitStatsRequested = useRef(false);
+  const pendingReactions = useRef<{ [key: string]: number }>({});
+
+  // Debounced function to update reactions in the database
+  const debouncedUpdateReactions = useRef(
+    debounce(async (updatedReactions: Reactions) => {
+      try {
+        const response = await fetch('/api/reactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedReactions)
+        });
+
+        if (!response.ok) {
+          // If the update fails, revert to the previous state
+          const data = await response.json();
+          console.error('Failed to update reactions:', data);
+          setReactions(prevReactions => ({
+            like: prevReactions.like - (pendingReactions.current.like || 0),
+            dislike: prevReactions.dislike - (pendingReactions.current.dislike || 0)
+          }));
+          toast.error('Failed to update reaction');
+        }
+      } catch (error) {
+        console.error('Error updating reactions:', error);
+        // Revert on error
+        setReactions(prevReactions => ({
+          like: prevReactions.like - (pendingReactions.current.like || 0),
+          dislike: prevReactions.dislike - (pendingReactions.current.dislike || 0)
+        }));
+        toast.error('Failed to update reaction');
+      } finally {
+        // Reset pending reactions after update attempt
+        pendingReactions.current = { like: 0, dislike: 0 };
+      }
+    }, 1000) // Debounce for 1 second
+  ).current;
 
   useEffect(() => {
     const init = async () => {
@@ -145,23 +193,21 @@ export default function Home() {
     }
   };
 
-  const handleReaction = async (type: 'like' | 'dislike') => {
-    try {
-      const updatedReactions = {
-        ...reactions,
-        [type]: reactions[type] + 1
-      };
+  const handleReaction = (type: 'like' | 'dislike') => {
+    // Optimistically update the UI
+    setReactions(prev => ({
+      ...prev,
+      [type]: prev[type] + 1
+    }));
 
-      await fetch('/api/reactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedReactions)
-      });
+    // Track pending reactions
+    pendingReactions.current[type] = (pendingReactions.current[type] || 0) + 1;
 
-      setReactions(updatedReactions);
-    } catch (error) {
-      console.error('Error updating reactions:', error);
-    }
+    // Trigger debounced update
+    debouncedUpdateReactions({
+      ...reactions,
+      [type]: reactions[type] + (pendingReactions.current[type] || 0)
+    });
   };
 
   if (loading) {
