@@ -27,6 +27,7 @@ export default function Home() {
   const [reactions, setReactions] = useState<Reactions>(defaultReactions);
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
   const [formData, setFormData] = useState({ name: '', time: '' });
   const [error, setError] = useState<string | null>(null);
   const visitStatsRequested = useRef(false);
@@ -80,8 +81,6 @@ export default function Home() {
         const reactions = await reactionsResponse.json();
         const stats = statsResponse ? await statsResponse.json() : visitStats;
 
-        console.log('Received data:', { slots, stats, reactions });
-
         setBookingSlots(slots);
         setVisitStats(stats);
         setReactions(reactions);
@@ -107,8 +106,8 @@ export default function Home() {
   }, []);
 
   const handleBooking = async (time: string, name: string) => {
+    setBookingInProgress(true);
     try {
-      // Only send the specific slot we want to update
       const response = await fetch('/api/booking-slots', {
         method: 'POST',
         headers: {
@@ -141,6 +140,8 @@ export default function Home() {
     } catch (error) {
       console.error('Network error in booking:', error);
       toast.error('Network error. Please try again.');
+    } finally {
+      setBookingInProgress(false);
     }
   };
 
@@ -270,7 +271,12 @@ export default function Home() {
 
       <div className="booking-panel bg-white p-6 rounded-lg shadow-md mb-8">
         <h3 className="text-xl mb-4">预约咖啡时间</h3>
-        <form onSubmit={(e) => { e.preventDefault(); handleBooking(formData.time, formData.name); }}>
+        <form onSubmit={(e) => { 
+          e.preventDefault(); 
+          if (!bookingInProgress) {
+            handleBooking(formData.time, formData.name);
+          }
+        }}>
           <div className="mb-4">
             <label htmlFor="name" className="block mb-2">您的姓名</label>
             <input
@@ -302,9 +308,14 @@ export default function Home() {
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+            disabled={bookingInProgress}
+            className={`w-full py-2 rounded transition-colors ${
+              bookingInProgress 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
           >
-            预约
+            {bookingInProgress ? '预约中...' : '预约'}
           </button>
         </form>
       </div>
@@ -316,6 +327,17 @@ export default function Home() {
               <div className="check-icon"></div>
             </div>
             <h3 className="text-xl">预约成功！</h3>
+          </div>
+        </div>
+      )}
+
+      {/* Booking in Progress Overlay */}
+      {bookingInProgress && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-8 rounded-lg text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <h3 className="text-xl font-medium text-gray-900">抢占你的咖啡时间...</h3>
+            <p className="text-gray-500 mt-2">请稍等片刻 ☕️</p>
           </div>
         </div>
       )}
