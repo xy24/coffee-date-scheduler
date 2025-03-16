@@ -11,6 +11,8 @@ if (!SENDER_ID) {
   throw new Error('NEXT_PUBLIC_LARK_RECEIVE_ID is not configured');
 }
 
+const SENDER_ID_STRING: string = SENDER_ID;
+
 // Function to get Lark tenant access token
 async function getLarkToken() {
   try {
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
     }
 
     // Save invitation to database first
-    const invitation = await saveInvitation(SENDER_ID, recipientId, message || null);
+    const invitation = await saveInvitation(SENDER_ID_STRING, recipientId, message || null);
 
     // Get Lark token
     const token = await getLarkToken();

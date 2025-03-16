@@ -176,11 +176,11 @@ export async function createInvitationsTable() {
   }
 }
 
-export async function saveInvitation(senderId: string, recipientId: string, message: string | null = null): Promise<Invitation> {
+export async function saveInvitation(senderId: string, recipientId: string, message?: string | null): Promise<Invitation> {
   try {
     const result = await sql<Invitation>`
       INSERT INTO invitations (sender_id, recipient_id, message)
-      VALUES (${senderId}, ${recipientId}, ${message})
+      VALUES (${senderId}, ${recipientId}, ${message ?? null})
       RETURNING *;
     `;
     return result.rows[0];
