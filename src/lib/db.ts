@@ -13,7 +13,7 @@ import { unstable_noStore as noStore } from 'next/cache';
 export async function getBookingSlots(): Promise<BookingSlots> {
   try {
     noStore();
-    const result = await sql`SELECT * FROM booking_slots`;
+    const result = await sql`SELECT * FROM booking_slots ORDER BY id`;
     const slots = result.rows;
     
     if (!slots || slots.length === 0) {
@@ -142,6 +142,80 @@ export async function saveReactions(data: Reactions): Promise<void> {
     `;
   } catch (error) {
     console.error('Error saving reactions:', error);
+    throw error;
+  }
+}
+
+export interface Invitation {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: Date;
+  updated_at: Date;
+  message?: string;
+}
+
+export async function createInvitationsTable() {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS invitations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        sender_id VARCHAR(255) NOT NULL,
+        recipient_id VARCHAR(255) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        message TEXT
+      );
+    `;
+    console.log('Invitations table created successfully');
+  } catch (error) {
+    console.error('Error creating invitations table:', error);
+    throw error;
+  }
+}
+
+export async function saveInvitation(senderId: string, recipientId: string, message: string | null = null): Promise<Invitation> {
+  try {
+    const result = await sql<Invitation>`
+      INSERT INTO invitations (sender_id, recipient_id, message)
+      VALUES (${senderId}, ${recipientId}, ${message})
+      RETURNING *;
+    `;
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error saving invitation:', error);
+    throw error;
+  }
+}
+
+export async function updateInvitationStatus(id: string, status: 'accepted' | 'rejected'): Promise<Invitation> {
+  try {
+    const result = await sql<Invitation>`
+      UPDATE invitations
+      SET status = ${status}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING *;
+    `;
+    if (result.rows.length === 0) {
+      throw new Error('Invitation not found');
+    }
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error updating invitation status:', error);
+    throw error;
+  }
+}
+
+export async function getInvitation(id: string): Promise<Invitation | null> {
+  try {
+    const result = await sql<Invitation>`
+      SELECT * FROM invitations WHERE id = ${id};
+    `;
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error getting invitation:', error);
     throw error;
   }
 }

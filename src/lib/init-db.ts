@@ -7,82 +7,98 @@ config({ path: path.join(process.cwd(), '.env.local') });
 import { sql } from '@vercel/postgres';
 import { defaultBookingSlots, defaultReactions, defaultVisitStats } from './types';
 
-async function initDb() {
+async function createBookingSlotsTable() {
   try {
-    // Verify environment variables are loaded
-    if (!process.env.POSTGRES_URL) {
-      throw new Error('Database connection string not found. Make sure POSTGRES_URL is set in .env.local');
-    }
-
-    console.log('Creating tables...');
-    
-    // Drop existing tables
-    await sql`DROP TABLE IF EXISTS booking_slots`;
-    await sql`DROP TABLE IF EXISTS visit_stats`;
-    await sql`DROP TABLE IF EXISTS reactions`;
-
-    // Create tables
-    await sql`CREATE TABLE IF NOT EXISTS booking_slots (
-      id TEXT PRIMARY KEY,
-      booked INTEGER DEFAULT 0,
-      current_month TEXT
-    )`;
-
-    await sql`CREATE TABLE IF NOT EXISTS visit_stats (
-      id INTEGER PRIMARY KEY,
-      visits INTEGER DEFAULT 0,
-      today_visits INTEGER DEFAULT 0,
-      last_visit_time TEXT
-    )`;
-
-    await sql`CREATE TABLE IF NOT EXISTS reactions (
-      id INTEGER PRIMARY KEY,
-      likes INTEGER DEFAULT 0,
-      dislikes INTEGER DEFAULT 0
-    )`;
-
-    console.log('Tables created successfully');
-
-    // Initialize with default data
-    console.log('Initializing booking slots...');
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    
-    // Insert all booking slots
-    for (const [id, booked] of Object.entries(defaultBookingSlots.slots)) {
-      await sql`
-        INSERT INTO booking_slots (id, booked, current_month) 
-        VALUES (${id}, ${booked ? 1 : 0}, ${currentMonth})
-        ON CONFLICT (id) DO UPDATE 
-        SET booked = ${booked ? 1 : 0}, 
-            current_month = ${currentMonth}
-      `;
-    }
-
-    console.log('Initializing reactions...');
     await sql`
-      INSERT INTO reactions (id, likes, dislikes) 
-      VALUES (1, ${defaultReactions.like}, ${defaultReactions.dislike})
-      ON CONFLICT (id) DO UPDATE 
-      SET likes = ${defaultReactions.like}, 
-          dislikes = ${defaultReactions.dislike}
+      CREATE TABLE IF NOT EXISTS booking_slots (
+        id VARCHAR(255) PRIMARY KEY,
+        booked INTEGER DEFAULT 0,
+        current_month VARCHAR(255)
+      );
     `;
-
-    console.log('Initializing visit stats...');
-    await sql`
-      INSERT INTO visit_stats (id, visits, today_visits, last_visit_time) 
-      VALUES (1, ${defaultVisitStats.visits}, ${defaultVisitStats.todayVisits.count}, ${defaultVisitStats.lastVisitTime})
-      ON CONFLICT (id) DO UPDATE 
-      SET visits = ${defaultVisitStats.visits}, 
-          today_visits = ${defaultVisitStats.todayVisits.count}, 
-          last_visit_time = ${defaultVisitStats.lastVisitTime}
-    `;
-
-    console.log('Database initialized successfully!');
+    console.log('Booking slots table created successfully');
   } catch (error) {
-    console.error('Failed to initialize database:', error);
+    console.error('Error creating booking slots table:', error);
     throw error;
   }
 }
 
-// Run the initialization
-initDb(); 
+async function createVisitStatsTable() {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS visit_stats (
+        id INTEGER PRIMARY KEY,
+        visits INTEGER DEFAULT 0,
+        today_visits INTEGER DEFAULT 0,
+        last_visit_time TIMESTAMP WITH TIME ZONE
+      );
+    `;
+    console.log('Visit stats table created successfully');
+  } catch (error) {
+    console.error('Error creating visit stats table:', error);
+    throw error;
+  }
+}
+
+async function createReactionsTable() {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS reactions (
+        id INTEGER PRIMARY KEY,
+        likes INTEGER DEFAULT 0,
+        dislikes INTEGER DEFAULT 0
+      );
+    `;
+    console.log('Reactions table created successfully');
+  } catch (error) {
+    console.error('Error creating reactions table:', error);
+    throw error;
+  }
+}
+
+async function createInvitationsTable() {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS invitations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        sender_id VARCHAR(255) NOT NULL,
+        recipient_id VARCHAR(255) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        message TEXT
+      );
+    `;
+    console.log('Invitations table created successfully');
+  } catch (error) {
+    console.error('Error creating invitations table:', error);
+    throw error;
+  }
+}
+
+export async function initializeDatabase() {
+  try {
+    console.log('Starting database initialization...');
+    
+    // Create all tables
+    await createBookingSlotsTable();
+    await createVisitStatsTable();
+    await createReactionsTable();
+    await createInvitationsTable();
+    
+    console.log('Database initialization completed successfully');
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    throw error;
+  }
+}
+
+// Run initialization if this file is executed directly
+if (require.main === module) {
+  initializeDatabase()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('Failed to initialize database:', error);
+      process.exit(1);
+    });
+} 

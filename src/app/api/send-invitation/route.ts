@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
+import { saveInvitation } from '@/lib/db';
 
 // Constants for Lark API
 const LARK_APP_ID = process.env.NEXT_PUBLIC_LARK_APP_ID;
 const LARK_APP_SECRET = process.env.NEXT_PUBLIC_LARK_APP_SECRET;
 const LARK_WEBHOOK_URL = process.env.NEXT_PUBLIC_LARK_WEBHOOK_URL;
+const SENDER_ID = process.env.NEXT_PUBLIC_LARK_RECEIVE_ID;
+
+if (!SENDER_ID) {
+  throw new Error('NEXT_PUBLIC_LARK_RECEIVE_ID is not configured');
+}
 
 // Function to get Lark tenant access token
 async function getLarkToken() {
@@ -56,6 +62,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Save invitation to database first
+    const invitation = await saveInvitation(SENDER_ID, recipientId, message || null);
+
     // Get Lark token
     const token = await getLarkToken();
     if (!token) {
@@ -65,17 +74,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create interactive card message
+    // Create interactive card message with invitation ID
     const cardMessage = {
       receive_id: recipientId,
-      "msg_type": "interactive",
-      "content": JSON.stringify({
-        "type": "template",
-        "data": {
-            "template_id": "AAqBpFwvq3wEc",
-            "template_variable": {
-                "open_id": recipientId
-            }
+      msg_type: "interactive",
+      content: JSON.stringify({
+        type: "template",
+        data: {
+          template_id: "AAqBpFwvq3wEc",
+          template_variable: {
+            invitation_id: invitation.id,
+            open_id: recipientId
+          }
         }
       })
     };
@@ -94,7 +104,7 @@ export async function POST(request: Request) {
       throw new Error(`Failed to send invitation: ${response.statusText}`);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, invitation });
   } catch (error) {
     console.error('Error sending invitation:', error);
     return NextResponse.json(
