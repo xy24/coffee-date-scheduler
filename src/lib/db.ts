@@ -13,7 +13,7 @@ import { unstable_noStore as noStore } from 'next/cache';
 export async function getBookingSlots(): Promise<BookingSlots> {
   try {
     noStore();
-    const result = await sql`SELECT * FROM booking_slots ORDER BY id`;
+    const result = await sql`SELECT * FROM booking_slots`;
     const slots = result.rows;
     
     if (!slots || slots.length === 0) {

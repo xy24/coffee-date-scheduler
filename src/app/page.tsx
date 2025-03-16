@@ -12,7 +12,7 @@ import {
 } from '@/lib/types';
 import ClickableImage from './components/ClickableImage';
 import AnimatedReactionButton from './components/AnimatedReactionButton';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 
 const TIME_CONFIG = {
   monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', 
@@ -108,8 +108,6 @@ export default function Home() {
 
   const handleBooking = async (time: string, name: string) => {
     try {
-      console.log('Booking time:', time);
-      
       // Only send the specific slot we want to update
       const response = await fetch('/api/booking-slots', {
         method: 'POST',
@@ -123,7 +121,6 @@ export default function Home() {
       });
 
       const data = await response.json();
-      console.log('Booking response:', data);
       
       if (!response.ok) {
         toast.error(data.error || 'Failed to book slot');
@@ -199,6 +196,17 @@ export default function Home() {
 
   return (
     <main className="container mx-auto px-4 py-8">
+      <Toaster 
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        }}
+      />
       <div className="header text-center mb-8">
         <div className="flex items-center justify-center gap-4 mb-4">
           <h1 className="text-3xl font-bold">☕️ 来和我喝杯咖啡吧</h1>
